@@ -1,0 +1,384 @@
+/* ===== Base ===== */
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+  color: #2a2a2a;
+}
+
+/* Propaga la tipografia als controls i popups de Leaflet */
+.leaflet-container {
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+}
+
+/* ===== Layout: mapa a tota pantalla + barra lateral flotant ===== */
+:root { --sidebar-w: 330px; }
+
+#app {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* El mapa ocupa tot el fons; la barra hi flota a sobre */
+#map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#sidebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: var(--sidebar-w);
+  /* Fons translúcid amb desenfocament del mapa al darrere (vidre esmerilat) */
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 2px 0 14px rgba(0, 0, 0, 0.18);
+  overflow-y: auto;
+  z-index: 1200;
+  transition: transform 0.25s ease;
+}
+#app.collapsed #sidebar { transform: translateX(-100%); }
+
+.sidebar-scroll { padding: 18px 18px 24px; }
+
+/* Els controls de baix a l'esquerra (nord + escala) s'aparten de la barra */
+.leaflet-bottom.leaflet-left {
+  left: var(--sidebar-w);
+  transition: left 0.25s ease;
+}
+#app.collapsed .leaflet-bottom.leaflet-left { left: 0; }
+
+/* ----- Botó de col·lapsar ----- */
+#sidebar-toggle {
+  position: absolute;
+  top: 14px;
+  left: calc(var(--sidebar-w) + 14px);
+  width: 26px;
+  height: 40px;
+  border: none;
+  border-radius: 0 6px 6px 0;
+  background: #9C3D1A;
+  color: #fff;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 1300;
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.25);
+  transition: left 0.25s ease;
+}
+#app.collapsed #sidebar-toggle { left: 0; }
+#sidebar-toggle:hover { background: #B5451F; }
+
+/* ----- Marca / capçalera del panell ----- */
+.brand h1 {
+  margin: 0;
+  font-family: "Poppins", "Inter", sans-serif;
+  font-size: 1.12rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #9C3D1A;
+}
+.brand-acr { color: #C9662F; }
+.brand-sub {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: #666;
+}
+
+.intro {
+  margin: 14px 0 4px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #555;
+}
+
+/* ----- Panells ----- */
+.panel {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #eaeaea;
+}
+.panel-title {
+  margin: 0 0 9px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: #9C3D1A;
+}
+
+/* ----- Files de control (radios / checkboxes) ----- */
+.ctrl-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 0.82rem;
+  color: #333;
+  cursor: pointer;
+}
+.ctrl-row input { accent-color: #9C3D1A; cursor: pointer; }
+
+.range-full { width: 100%; cursor: pointer; accent-color: #9C3D1A; }
+
+/* ----- Selector de municipi i botó ----- */
+.select-full {
+  width: 100%;
+  padding: 7px 9px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  color: #333;
+  background: #fff;
+  border: 1px solid #E3D3C8;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.select-full:focus {
+  outline: none;
+  border-color: #9C3D1A;
+}
+
+.btn-reset {
+  width: 100%;
+  margin-top: 8px;
+  padding: 7px 9px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  color: #9C3D1A;
+  background: #FBEEE7;
+  border: 1px solid #E3D3C8;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.btn-reset:hover { background: #F3DDD0; }
+
+/* ----- Font de les dades ----- */
+.font-dades {
+  margin: 20px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid #eaeaea;
+  font-size: 0.68rem;
+  font-style: italic;
+  color: #888;
+  line-height: 1.4;
+}
+
+/* Barra de gradient contínua VERTICAL (mateixos colors que el mapa) */
+.legend-vert {
+  display: flex;
+  gap: 7px;
+  margin-top: 4px;
+}
+
+.legend-ramp-v {
+  width: 14px;
+  height: 104px;
+  border-radius: 3px;
+  /* de baix (0, blau) a dalt (100, vermell) */
+  background: linear-gradient(to top,
+    #2b83ba 0%,
+    #abdda4 25%,
+    #ffffbf 50%,
+    #fdae61 75%,
+    #d7191c 100%);
+}
+
+.legend-ramp-v-labels {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 104px;
+  font-size: 0.66rem;
+  color: #555;
+}
+.legend-ramp-v-labels b { color: #333; }
+
+/* ===== Targeta flotant de llegenda + transparència (dins el mapa) ===== */
+.map-legend {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  padding: 11px 13px;
+  border-radius: 8px;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.25);
+  font-size: 0.8rem;
+  color: #333;
+  max-width: 240px;
+}
+.map-legend-title {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #9C3D1A;
+}
+.map-legend-opacitat {
+  margin-top: 11px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+.map-legend-opacitat label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.72rem;
+  color: #555;
+}
+.map-legend-opacitat input[type="range"] {
+  width: 100%;
+  cursor: pointer;
+  accent-color: #9C3D1A;
+}
+
+/* ===== Símbol del nord ===== */
+.nord-control {
+  background: rgba(255, 255, 255, 0.9);
+  padding: 4px 6px 2px;
+  border-radius: 6px;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+  line-height: 0;
+}
+
+/* ===== Popup ===== */
+.popup-ivac { font-size: 0.85rem; min-width: 250px; }
+.popup-ivac > b {
+  display: block;
+  color: #9C3D1A;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.popup-overline {
+  display: block;
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: #C9662F;
+}
+
+.popup-ref {
+  display: block;
+  margin-top: 1px;
+  font-size: 0.68rem;
+  color: #999;
+}
+
+.popup-ivac-total {
+  margin: 6px 0 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.popup-ivac-titol {
+  display: block;
+  margin: 4px 0 2px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #888;
+}
+
+/* --- Files de components amb barra de gradient --- */
+.comp-row {
+  margin: 7px 0;
+  cursor: help;
+}
+.comp-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.76rem;
+}
+.comp-name { flex: 1; color: #444; }
+.comp-val {
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+}
+.comp-val-total { color: #9C3D1A; font-size: 0.9rem; }
+
+/* Barra de gradient Spectral continu i suau (blau → vermell) */
+.comp-bar {
+  position: relative;
+  height: 9px;
+  margin-top: 3px;
+  border-radius: 4px;
+  background: linear-gradient(to right,
+    #2b83ba 0%,
+    #abdda4 25%,
+    #ffffbf 50%,
+    #fdae61 75%,
+    #d7191c 100%);
+}
+.comp-bar-marker {
+  position: absolute;
+  top: -2px;
+  width: 2px;
+  height: 13px;
+  background: #1a1a1a;
+  border-radius: 1px;
+  transform: translateX(-1px);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85);
+}
+
+.comp-num {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  line-height: 15px;
+  margin-right: 3px;
+  text-align: center;
+  border-radius: 50%;
+  background: #9C3D1A;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.popup-ivac-nota {
+  display: block;
+  margin-top: 5px;
+  font-size: 0.66rem;
+  color: #999;
+  font-style: italic;
+}
+
+.popup-ivac-footnote {
+  margin: 8px 0 0;
+  padding-top: 7px;
+  border-top: 1px solid #e0e0e0;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: #666;
+}
+
+/* ===== Responsivitat mòbil ===== */
+@media (max-width: 768px) {
+  /* La barra no tapa tota la pantalla i arrenca plegada (via JS) */
+  :root { --sidebar-w: min(330px, 86vw); }
+
+  #sidebar { background: rgba(255, 255, 255, 0.92); }
+
+  /* Targeta de llegenda més compacta */
+  .map-legend {
+    max-width: 190px;
+    padding: 9px 11px;
+    font-size: 0.73rem;
+  }
+  .map-legend-title { font-size: 0.72rem; }
+  .legend-ramp-v,
+  .legend-ramp-v-labels { height: 86px; }
+
+  .brand h1 { font-size: 1rem; }
+}
