@@ -194,7 +194,7 @@ const estilAMBfosc = { color: "#ffffff", weight: 1.2, fill: false, dashArray: "2
 let capaIVAC, capaAMB;
 
 // 5.1 Capa IVAC (zones urbanes)
-fetch("data/IVAC.geojson")
+fetch("IVAC.geojson")
   .then((r) => r.json())
   .then((data) => {
     capaIVAC = L.geoJSON(data, {
@@ -208,7 +208,7 @@ fetch("data/IVAC.geojson")
   .catch((err) => console.error("Error carregant IVAC.geojson:", err));
 
 // 5.2 Límits municipals AMB (només contorn)
-fetch("data/AMB_municipis.geojson")
+fetch("AMB_municipis.geojson")
   .then((r) => r.json())
   .then((data) => {
     capaAMB = L.geoJSON(data, {
