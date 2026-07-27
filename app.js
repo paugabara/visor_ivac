@@ -242,12 +242,17 @@ fetch("AMB_municipis.geojson")
       interactive: false          // deixa passar els clics cap a la capa IVAC
     }).addTo(map);
 
-    // Màscara "spotlight": món exterior + forats amb la forma de l'AMB
+    // Màscara "spotlight": món exterior + forats amb la forma de l'AMB.
+    // IMPORTANT: renderitzador SVG propi (no el canvas compartit del mapa).
+    // Amb preferCanvas:true tots els vectors comparteixen un sol <canvas>, i
+    // aquest no pinta de manera fiable un únic polígon d'abast mundial durant
+    // la càrrega inicial (només es dibuixa després de redimensionar el canvas).
+    // Un renderitzador SVG dedicat el pinta correctament sempre i té cost nul
+    // (només és un polígon).
     capaMascara = L.polygon(
       [MON_EXTERIOR, ...foratsAMB(data)],
-      estilMascaraClar
+      Object.assign({ renderer: L.svg() }, estilMascaraClar)
     ).addTo(map);
-    capaMascara.bringToBack();   // sempre just per sobre del mapa base
     if (!document.getElementById("chk-mascara").checked) map.removeLayer(capaMascara);
 
     capaAMB.bringToFront();
