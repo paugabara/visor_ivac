@@ -190,8 +190,34 @@ function onEachIVAC(feature, layer) {
 const estilAMBclar = { color: "#333333", weight: 1.3, fill: false, dashArray: "2 4" };
 const estilAMBfosc = { color: "#ffffff", weight: 1.2, fill: false, dashArray: "2 4" };
 
+/* ---------- 4 bis. Màscara "spotlight" fora de l'AMB (adaptativa) ---------- */
+// Un únic polígon que cobreix tot el món amb "forats" amb la forma dels
+// municipis de l'AMB: així només s'enfosqueix el que queda fora de l'àrea
+// d'estudi (on tampoc hi ha dades IVAC), destacant la zona d'interès.
+// Sobre mapa clar → vel blanquinós; sobre mapa fosc → vel fosc.
+const estilMascaraClar = { stroke: false, fillColor: "#f4f1ec", fillOpacity: 0.55, interactive: false };
+const estilMascaraFosc = { stroke: false, fillColor: "#0a0e14", fillOpacity: 0.55, interactive: false };
+
+// Anell exterior gairebé global (lat, lng) que fa de "món" de la màscara.
+const MON_EXTERIOR = [[-85, -179.9], [85, -179.9], [85, 179.9], [-85, 179.9]];
+
+// Extreu els anells exteriors de tots els municipis com a forats de la màscara.
+// Només l'anell exterior (índex 0) de cada polígon: els forats interns d'un
+// municipi (si n'hi ha) han de quedar enfosquits, no retallats.
+function foratsAMB(data) {
+  const forats = [];
+  data.features.forEach((f) => {
+    const g = f.geometry;
+    const polys = g.type === "MultiPolygon" ? g.coordinates : [g.coordinates];
+    polys.forEach((poly) => {
+      forats.push(poly[0].map(([lng, lat]) => [lat, lng]));
+    });
+  });
+  return forats;
+}
+
 /* ---------- 5. Càrrega de dades ---------- */
-let capaIVAC, capaAMB;
+let capaIVAC, capaAMB, capaMascara;
 
 // 5.1 Capa IVAC (zones urbanes)
 fetch("IVAC.geojson")
@@ -215,6 +241,15 @@ fetch("AMB_municipis.geojson")
       style: estilAMBclar,       // el mapa base per defecte és clar → línia fosca
       interactive: false          // deixa passar els clics cap a la capa IVAC
     }).addTo(map);
+
+    // Màscara "spotlight": món exterior + forats amb la forma de l'AMB
+    capaMascara = L.polygon(
+      [MON_EXTERIOR, ...foratsAMB(data)],
+      estilMascaraClar
+    ).addTo(map);
+    capaMascara.bringToBack();   // sempre just per sobre del mapa base
+    if (!document.getElementById("chk-mascara").checked) map.removeLayer(capaMascara);
+
     capaAMB.bringToFront();
     if (!document.getElementById("chk-amb").checked) map.removeLayer(capaAMB);
     configurarNavegacio();
@@ -264,9 +299,11 @@ const basemaps = { positron: positron, dataviz: maptiler, dark: darkMatter, esri
 const basesFosques = ["dark", "esri"];   // necessiten línia municipal blanca
 
 function aplicaBasemap(clau) {
+  const fosc = basesFosques.includes(clau);
   Object.values(basemaps).forEach((l) => map.removeLayer(l));
   basemaps[clau].addTo(map);
-  if (capaAMB) capaAMB.setStyle(basesFosques.includes(clau) ? estilAMBfosc : estilAMBclar);
+  if (capaAMB) capaAMB.setStyle(fosc ? estilAMBfosc : estilAMBclar);
+  if (capaMascara) capaMascara.setStyle(fosc ? estilMascaraFosc : estilMascaraClar);
 }
 
 document.querySelectorAll('input[name="basemap"]').forEach((r) => {
@@ -285,6 +322,11 @@ document.getElementById("chk-amb").addEventListener("change", function () {
   if (!capaAMB) return;
   if (this.checked) { capaAMB.addTo(map); capaAMB.bringToFront(); }
   else map.removeLayer(capaAMB);
+});
+document.getElementById("chk-mascara").addEventListener("change", function () {
+  if (!capaMascara) return;
+  if (this.checked) { capaMascara.addTo(map); capaMascara.bringToBack(); }
+  else map.removeLayer(capaMascara);
 });
 
 /* ---------- Llegenda + transparència (targeta flotant al mapa) ---------- */
