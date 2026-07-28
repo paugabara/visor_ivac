@@ -130,6 +130,15 @@ html, body {
 
 .range-full { width: 100%; cursor: pointer; accent-color: #9C3D1A; }
 
+/* Nota de cobertura sota una capa (p. ex. abast dels refugis) */
+.capa-nota {
+  margin: 1px 0 5px 24px;
+  font-size: 0.68rem;
+  font-style: italic;
+  line-height: 1.35;
+  color: #999;
+}
+
 /* ----- Selector de municipi i botó ----- */
 .select-full {
   width: 100%;
@@ -172,6 +181,11 @@ html, body {
   color: #888;
   line-height: 1.4;
 }
+.font-dades a {
+  color: #9C3D1A;
+  text-decoration: underline;
+}
+.font-dades a:hover { color: #B5451F; }
 
 /* Barra de gradient contínua VERTICAL (mateixos colors que el mapa) */
 .legend-vert {
@@ -412,6 +426,24 @@ html, body {
   margin-top: 1px;
   font-size: 0.72rem;
   color: #999;
+}
+.ref-tip {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 1px 8px;
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: #9C3D1A;
+  background: #FBEEE7;
+  border-radius: 10px;
+}
+.ref-font {
+  display: block;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #eee;
+  font-size: 0.62rem;
+  color: #aaa;
 }
 .ref-block {
   margin-top: 8px;
