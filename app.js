@@ -217,7 +217,7 @@ function foratsAMB(data) {
 }
 
 /* ---------- 5. Càrrega de dades ---------- */
-let capaIVAC, capaAMB, capaMascara;
+let capaIVAC, capaAMB, capaMascara, capaRefugis;
 
 // 5.1 Capa IVAC (zones urbanes)
 fetch("IVAC.geojson")
@@ -260,6 +260,87 @@ fetch("AMB_municipis.geojson")
     configurarNavegacio();
   })
   .catch((err) => console.error("Error carregant AMB_municipis.geojson:", err));
+
+// 5.3 Refugis climàtics (Open Data BCN) — capa de punts agrupats
+// Color índic, deliberadament fora de la rampa Spectral de l'IVAC perquè
+// els punts no es confonguin amb els valors de vulnerabilitat.
+const REFUGI_COLOR = "#4f46e5";
+const estilRefugi = {
+  radius: 5,
+  fillColor: REFUGI_COLOR,
+  color: "#ffffff",
+  weight: 1.5,
+  opacity: 1,
+  fillOpacity: 0.9
+};
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"]/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+// Renderitza l'horari estructurat: agrupa per període (temporada) i,
+// dins de cada període, llista dia → hores amb pics.
+function renderHorari(horari) {
+  const arr = Array.isArray(horari) ? horari : (horari ? [horari] : []);
+  if (!arr.length) return "";
+  const grups = [];
+  arr.forEach((e) => {
+    const per = e.periode || "";
+    let g = grups[grups.length - 1];
+    if (!g || g.periode !== per) { g = { periode: per, files: [] }; grups.push(g); }
+    g.files.push(e);
+  });
+  let out = `<div class="ref-block"><span class="ref-label">Horari</span>`;
+  grups.forEach((g) => {
+    if (g.periode) out += `<div class="ref-periode">${esc(g.periode)}</div>`;
+    out += `<ul class="ref-hores">`;
+    g.files.forEach((f) => {
+      out += `<li>`;
+      if (f.dia) out += `<span class="ref-dia">${esc(f.dia)}</span>`;
+      if (f.hores) out += `<span class="ref-hora">${esc(f.hores)}</span>`;
+      out += `</li>`;
+    });
+    out += `</ul>`;
+  });
+  return out + `</div>`;
+}
+
+function popupRefugi(p) {
+  const zona = [p.barri, p.districte].filter(Boolean).map(esc).join(" · ");
+  let html = `<div class="popup-refugi">
+    <span class="popup-overline">Refugi climàtic · Barcelona</span>
+    <b>${esc(p.nom) || "—"}</b>`;
+  if (p.adreca) html += `<span class="ref-adr">${esc(p.adreca)}</span>`;
+  if (zona) html += `<span class="ref-zona">${zona}</span>`;
+  html += renderHorari(p.horari);
+  if (p.web || p.email) {
+    html += `<div class="ref-block">`;
+    if (p.web) html += `<a class="ref-link" href="${esc(p.web)}" target="_blank" rel="noopener">Web del refugi ↗</a>`;
+    if (p.email) html += `<a class="ref-link" href="mailto:${esc(p.email)}">${esc(p.email)}</a>`;
+    html += `</div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+fetch("refugis_climatics.geojson")
+  .then((r) => r.json())
+  .then((data) => {
+    capaRefugis = L.markerClusterGroup({
+      showCoverageOnHover: false,   // no dibuixis el polígon d'abast en passar-hi
+      maxClusterRadius: 55,
+      chunkedLoading: true          // càrrega per lots (542 punts) sense bloquejar
+    });
+    L.geoJSON(data, {
+      pointToLayer: (feature, latlng) => L.circleMarker(latlng, estilRefugi),
+      onEachFeature: (feature, layer) =>
+        layer.bindPopup(popupRefugi(feature.properties), { maxWidth: 300 })
+    }).addTo(capaRefugis);
+    capaRefugis.addTo(map);
+    if (!document.getElementById("chk-refugis").checked) map.removeLayer(capaRefugis);
+  })
+  .catch((err) => console.error("Error carregant refugis_climatics.geojson:", err));
 
 // Selector de municipi + botó per veure tota l'AMB
 function configurarNavegacio() {
@@ -332,6 +413,11 @@ document.getElementById("chk-mascara").addEventListener("change", function () {
   if (!capaMascara) return;
   if (this.checked) { capaMascara.addTo(map); capaMascara.bringToBack(); }
   else map.removeLayer(capaMascara);
+});
+document.getElementById("chk-refugis").addEventListener("change", function () {
+  if (!capaRefugis) return;
+  if (this.checked) capaRefugis.addTo(map);
+  else map.removeLayer(capaRefugis);
 });
 
 /* ---------- Llegenda + transparència (targeta flotant al mapa) ---------- */
