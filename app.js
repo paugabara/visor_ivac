@@ -309,8 +309,9 @@ function renderHorari(horari) {
 function popupRefugi(p) {
   const zona = [p.barri, p.districte].filter(Boolean).map(esc).join(" · ");
   let html = `<div class="popup-refugi">
-    <span class="popup-overline">Refugi climàtic · Barcelona</span>
+    <span class="popup-overline">Refugi climàtic · ${esc(p.municipi) || "AMB"}</span>
     <b>${esc(p.nom) || "—"}</b>`;
+  if (p.tipologia) html += `<span class="ref-tip">${esc(p.tipologia)}</span>`;
   if (p.adreca) html += `<span class="ref-adr">${esc(p.adreca)}</span>`;
   if (zona) html += `<span class="ref-zona">${zona}</span>`;
   html += renderHorari(p.horari);
@@ -320,6 +321,7 @@ function popupRefugi(p) {
     if (p.email) html += `<a class="ref-link" href="mailto:${esc(p.email)}">${esc(p.email)}</a>`;
     html += `</div>`;
   }
+  if (p.font) html += `<span class="ref-font">Font: ${esc(p.font)}</span>`;
   html += `</div>`;
   return html;
 }
