@@ -1,0 +1,39 @@
+name: Actualitza refugis climàtics
+
+# Regenera refugis_climatics.geojson des de les fonts en viu
+# (Open Data BCN + IDE AMB) i fa commit si el resultat ha canviat.
+on:
+  schedule:
+    - cron: '0 4 1 * *'      # 04:00 UTC del dia 1 de cada mes
+  workflow_dispatch:          # permet llançar-lo a mà des de la pestanya "Actions"
+
+permissions:
+  contents: write             # necessari perquè el bot pugui fer commit
+
+jobs:
+  actualitza:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clona el repositori
+        uses: actions/checkout@v4
+
+      - name: Prepara Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Genera refugis_climatics.geojson
+        run: python build_refugis.py
+
+      - name: Commit si hi ha canvis
+        run: |
+          if [ -n "$(git status --porcelain refugis_climatics.geojson)" ]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add refugis_climatics.geojson
+            git commit -m "Actualització automàtica de refugis climàtics ($(date +%Y-%m-%d))"
+            git push
+            echo "Fitxer actualitzat i publicat."
+          else
+            echo "Sense canvis: res a fer."
+          fi
