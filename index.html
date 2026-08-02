@@ -37,35 +37,41 @@
         </div>
 
         <p class="intro">
-          Mostra la vulnerabilitat social de cada zona urbana (secció censal)
-          davant els episodis i les onades de calor, cada cop més freqüents i
-          intenses a causa del canvi climàtic.
+          L'<b>exposició a la calor</b> no es reparteix de manera homogènia pel territori
+          metropolità: la densitat, la morfologia urbana i el dèficit de verd hi
+          configuren l'efecte illa de calor. La temperatura mitjana anual i l'increment
+          projectat per a l'horitzó 2011–2040 permeten identificar on l'escalfament
+          és —i serà— més acusat.
         </p>
         <p class="intro">
-          Es representa en una escala de 0 a 100: com més alt és el valor, més
-          vulnerable és la població d'aquella zona.
+          Aquesta exposició incideix de manera desigual sobre la població. L'Índex
+          de Vulnerabilitat al Canvi Climàtic (IVAC) sintetitza, per a cada secció
+          censal i en una escala de 0 a 100, la sensibilitat social i la <b>capacitat
+          d'adaptació de la ciutadania</b> davant la calor extrema.
         </p>
         <p class="intro">
-          Davant d'aquesta vulnerabilitat, els refugis climàtics en són una part
-          de la resposta: equipaments i espais públics on protegir-se de la
-          calor. Superposar-los a l'índex permet veure si les zones més
-          vulnerables tenen refugis a prop i on en falten.
+          Els <b>refugis climàtics</b> es presenten com la resposta de l'administració: una xarxa
+          d'equipaments i espais públics de confort tèrmic. Contrastar-la amb
+          l'índex permet valorar si arriba a les zones més vulnerables i on cal
+          reforçar-la des del planejament.
         </p>
 
         <section class="panel">
-          <h2 class="panel-title">Navegació</h2>
-          <select id="sel-municipi" class="select-full">
-            <option value="">Ves a un municipi…</option>
-          </select>
-          <button id="btn-reset" type="button" class="btn-reset">Veure tota l'AMB</button>
-        </section>
-
-        <section class="panel">
-          <h2 class="panel-title">Capes</h2>
+          <h2 class="panel-title">Capes d'informació</h2>
           <label class="ctrl-row">
             <input type="checkbox" id="chk-ivac" checked>
-            <span>Índex de Vulnerabilitat (IVAC)</span>
+            <span><span class="swatch-ivac"></span>Índex de Vulnerabilitat (IVAC)</span>
           </label>
+
+          <div class="subpanel">
+            <h3 class="subpanel-title">Temperatura</h3>
+            <select id="sel-temp" class="select-full">
+              <option value="">Cap</option>
+              <option value="mitjana">Mitjana anual (1981–2010)</option>
+              <option value="increment">Increment projectat (2011–2040)</option>
+            </select>
+          </div>
+
           <label class="ctrl-row">
             <input type="checkbox" id="chk-refugis" checked>
             <span><span class="dot-refugi"></span>Refugis climàtics (AMB)</span>
@@ -74,10 +80,14 @@
             <input type="checkbox" id="chk-amb" checked>
             <span>Límits municipals (AMB)</span>
           </label>
-          <label class="ctrl-row">
-            <input type="checkbox" id="chk-mascara" checked>
-            <span>Màscara exterior (fora de l'AMB)</span>
-          </label>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel-title">Navegació</h2>
+          <select id="sel-municipi" class="select-full">
+            <option value="">Ves a un municipi…</option>
+          </select>
+          <button id="btn-reset" type="button" class="btn-reset">Veure tota l'AMB</button>
         </section>
 
         <section class="panel">
@@ -101,11 +111,11 @@
         </section>
 
         <p class="font-dades">
-          Fonts: Índex de Vulnerabilitat al Canvi Climàtic (2022) i Xarxa
-          metropolitana de refugis climàtics (2025) — Infraestructura de Dades
-          Espacials de l'Àrea Metropolitana de Barcelona (AMB), reutilització
-          segons la Llei 37/2007. Xarxa de refugis climàtics a la ciutat de
-          Barcelona (2026) —
+          Fonts: Índex de Vulnerabilitat al Canvi Climàtic (2022), Xarxa
+          metropolitana de refugis climàtics (2025) i temperatura i escenaris
+          climàtics — Infraestructura de Dades Espacials de l'Àrea Metropolitana
+          de Barcelona (AMB), reutilització segons la Llei 37/2007. Xarxa de
+          refugis climàtics a la ciutat de Barcelona (2026) —
           <a href="https://opendata-ajuntament.barcelona.cat/" target="_blank" rel="noopener">Open Data BCN</a>,
           llicència
           <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.

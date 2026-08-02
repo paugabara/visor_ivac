@@ -15,7 +15,7 @@ html, body {
 }
 
 /* ===== Layout: mapa a tota pantalla + barra lateral flotant ===== */
-:root { --sidebar-w: 330px; }
+:root { --sidebar-w: 420px; }
 
 #app {
   position: relative;
@@ -114,6 +114,21 @@ html, body {
   letter-spacing: 0.05em;
   font-weight: 600;
   color: #9C3D1A;
+}
+
+/* Subapartat dins d'un panell (p. ex. "Temperatura") */
+.subpanel {
+  margin: 4px 0 4px 6px;
+  padding-left: 10px;
+  border-left: 2px solid #E3D3C8;
+}
+.subpanel-title {
+  margin: 4px 0 3px;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  color: #C9662F;
 }
 
 /* ----- Files de control (radios / checkboxes) ----- */
@@ -251,6 +266,83 @@ html, body {
   width: 100%;
   cursor: pointer;
   accent-color: #9C3D1A;
+}
+
+/* ----- Llegenda de temperatura (capa ràster IDE AMB) ----- */
+.map-legend-temp {
+  margin-top: 11px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+/* Degradat groc (fresc) → vermell (calor), calcat de la simbologia del servei */
+.legend-ramp-temp {
+  background: linear-gradient(to top,
+    #F5F400 0%,
+    #F5BA00 25%,
+    #F57C00 50%,
+    #F53F00 75%,
+    #F50100 100%);
+}
+/* Rampa contínua de l'increment projectat (lila clar → violeta fosc) */
+.legend-ramp-incr {
+  background: linear-gradient(to top,
+    #f2e6f7 0%,
+    #d0a9e0 25%,
+    #a860c9 50%,
+    #7d2fae 75%,
+    #4a0d78 100%);
+}
+
+/* Llegenda de classes discretes (no s'usa ara; es conserva per si de cas) */
+.legend-classes {
+  margin-top: 4px;
+}
+.legend-classe {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.74rem;
+  color: #444;
+  line-height: 1.5;
+}
+.legend-classe-box {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  flex: none;
+}
+.legend-nota {
+  margin-top: 6px;
+  font-size: 0.66rem;
+  font-style: italic;
+  color: #999;
+  line-height: 1.35;
+}
+
+/* Petits distintius de degradat a les etiquetes de les capes de dades */
+.swatch-temp,
+.swatch-ivac,
+.swatch-incr {
+  display: inline-block;
+  width: 22px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 2px;
+  vertical-align: middle;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+.swatch-temp {
+  background: linear-gradient(to right, #F5F400, #F57C00, #F50100);
+}
+.swatch-incr {
+  background: linear-gradient(to right, #f2e6f7, #a860c9, #4a0d78);
+}
+/* Rampa Spectral de l'IVAC (0 blau → 100 vermell) */
+.swatch-ivac {
+  background: linear-gradient(to right,
+    #2b83ba, #abdda4, #ffffbf, #fdae61, #d7191c);
 }
 
 /* ===== Símbol del nord ===== */
@@ -513,7 +605,7 @@ html, body {
 /* ===== Responsivitat mòbil ===== */
 @media (max-width: 768px) {
   /* La barra no tapa tota la pantalla i arrenca plegada (via JS) */
-  :root { --sidebar-w: min(330px, 86vw); }
+  :root { --sidebar-w: min(420px, 86vw); }
 
   #sidebar { background: rgba(255, 255, 255, 0.92); }
 

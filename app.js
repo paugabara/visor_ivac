@@ -59,6 +59,185 @@ const maptiler = L.tileLayer(
   }
 );
 
+/* ---------- 1 bis. Capa de temperatura (IDE AMB) ---------- */
+// Ràster de temperatura mitjana anual 1981–2010 del servei
+// "escenaris_canvi_climatic_2025" (MapServer dinàmic d'ArcGIS). No té cache de
+// tessel·les ni WMS operatiu, però sí l'operació "export": demanem a cada
+// tessel·la la seva imatge amb el bbox corresponent en EPSG:3857.
+const TEMP_BASE = "https://ide.amb.cat/geoserveis/rest/services/escenaris_canvi_climatic_2025/MapServer";
+const TEMP_EXPORT = TEMP_BASE + "/export";
+
+// Pane propi: per sobre del mapa base (tilePane, z-index 200) i per sota de les
+// dades vectorials (overlayPane, z-index 400), i immune als canvis de mapa base.
+map.createPane("tempPane");
+map.getPane("tempPane").style.zIndex = 250;
+map.getPane("tempPane").style.pointerEvents = "none";
+
+// Pane per a la capa d'increment projectat: per sobre del mapa base i la
+// temperatura, però per SOTA de l'overlayPane (canvas de l'IVAC) perquè l'IVAC
+// quedi per damunt. Com que la projecció queda sota el canvas, no rep els clics
+// directament: el valor es consulta amb el gestor de clic del mapa (identifyIncrement).
+map.createPane("projPane");
+map.getPane("projPane").style.zIndex = 260;
+
+const ExportTileLayer = L.TileLayer.extend({
+  getTileUrl: function (coords) {
+    const size = this.getTileSize();
+    const nwPx = coords.scaleBy(size);
+    const sePx = nwPx.add(size);
+    const nw = L.CRS.EPSG3857.project(this._map.unproject(nwPx, coords.z));
+    const se = L.CRS.EPSG3857.project(this._map.unproject(sePx, coords.z));
+    const bbox = [nw.x, se.y, se.x, nw.y].join(",");
+    return `${TEMP_EXPORT}?bbox=${bbox}&bboxSR=3857&imageSR=3857` +
+           `&size=256,256&format=png32&transparent=true&layers=show:0&f=image`;
+  }
+});
+
+const capaTemp = new ExportTileLayer("", {
+  pane: "tempPane",
+  opacity: 0.7,
+  attribution: 'Temperatura &copy; <a href="https://www.amb.cat/">AMB</a> (IDEAMB)'
+});
+
+/* ---------- 1 ter. Capa d'increment projectat 2011–2040 (IDE AMB) ---------- */
+// Coropleta de l'increment (Δ°C) de temperatura mitjana anual projectat per a
+// 2011–2040, escenari RCP4.5, respecte al període de referència. Font:
+// servei "canvi_climatic" (camp T_E45A1140TM), pre-processat a un GeoJSON
+// estàtic (dades fixes). Rampa DIFERENT de l'absoluta perquè no es confonguin:
+// salmó clar (poc escalfament) → granat (molt escalfament).
+// Rampa CONTÍNUA violeta (lila clar → violeta fosc): gradual, amb bon recorregut
+// de luminància per llegir el diferencial, i deliberadament diferent de l'IVAC
+// (spectral) i de la temperatura absoluta (groc→vermell).
+const RAMPA_INCR = [
+  { p: 1.0, c: [242, 230, 247] },  // #f2e6f7
+  { p: 1.4, c: [208, 169, 224] },  // #d0a9e0
+  { p: 1.8, c: [168, 96, 201] },   // #a860c9
+  { p: 2.2, c: [125, 47, 174] },   // #7d2fae
+  { p: 2.6, c: [74, 13, 120] }     // #4a0d78
+];
+function getColorIncr(v) {
+  const val = Math.max(1.0, Math.min(2.6, Number(v)));
+  for (let i = 1; i < RAMPA_INCR.length; i++) {
+    if (val <= RAMPA_INCR[i].p) {
+      const a = RAMPA_INCR[i - 1], b = RAMPA_INCR[i];
+      const t = (val - a.p) / (b.p - a.p);
+      const r = Math.round(a.c[0] + (b.c[0] - a.c[0]) * t);
+      const g = Math.round(a.c[1] + (b.c[1] - a.c[1]) * t);
+      const bl = Math.round(a.c[2] + (b.c[2] - a.c[2]) * t);
+      return `rgb(${r},${g},${bl})`;
+    }
+  }
+  return "rgb(74,13,120)";
+}
+
+let opacitatIncr = 0.8;
+function estilIncrement(feature) {
+  return { fillColor: getColorIncr(feature.properties.incr), fillOpacity: opacitatIncr, weight: 0 };
+}
+function popupIncrementHtml(inc) {
+  const v = Number(inc);
+  return `<div class="popup-ivac">
+       <span class="popup-overline">Projecció climàtica · 2011–2040 (RCP4.5)</span>
+       <div class="popup-ivac-total" style="border-bottom:none;margin-bottom:0;padding-bottom:0">
+         <div class="comp-head">
+           <span class="comp-name">Increment de temperatura mitjana anual</span>
+           <span class="comp-val comp-val-total">+${v.toFixed(1)} °C</span>
+         </div>
+       </div>
+     </div>`;
+}
+function onEachIncrement(feature, layer) {
+  layer.bindPopup(popupIncrementHtml(feature.properties.incr), { maxWidth: 280 });
+}
+
+// Punt dins d'anell (ray casting), coords [lng,lat]
+function dinsAnell(x, y, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+// Com que la capa d'increment queda sota el canvas de l'IVAC i no rep els clics,
+// busquem la cel·la sota el punt i n'obrim el popup des del gestor de clic del mapa.
+function identifyIncrement(latlng) {
+  if (!capaIncrement) return;
+  let val = null;
+  capaIncrement.eachLayer((layer) => {
+    if (val !== null || !layer.getBounds().contains(latlng)) return;
+    if (dinsAnell(latlng.lng, latlng.lat, layer.feature.geometry.coordinates[0])) {
+      val = layer.feature.properties.incr;
+    }
+  });
+  if (val !== null) {
+    L.popup({ maxWidth: 280 }).setLatLng(latlng).setContent(popupIncrementHtml(val)).openOn(map);
+  }
+}
+
+// Renderer SVG propi per a la projecció (a diferència del canvas, permet
+// retallar-la amb un clipPath a la forma exacta de l'AMB).
+const projRenderer = L.svg({ pane: "projPane" });
+const SVGNS = "http://www.w3.org/2000/svg";
+let capaAMBclip = null;
+
+// Retall (clipPath) amb la forma EXACTA dels municipis de l'AMB. La forma és un
+// polígon invisible dibuixat pel mateix renderer SVG; així Leaflet la manté
+// sincronitzada en fer zoom/pan i el clipPath (via <use>) la segueix sol.
+function aplicaRetallAMB() {
+  const svg = projRenderer._container;
+  if (!dadesAMB || !svg) return;
+  if (!capaAMBclip) {
+    const polys = [];
+    dadesAMB.features.forEach((f) => {
+      const g = f.geometry;
+      const ps = g.type === "MultiPolygon" ? g.coordinates : [g.coordinates];
+      ps.forEach((poly) => polys.push([poly[0].map(([lng, lat]) => [lat, lng])]));
+    });
+    capaAMBclip = L.polygon(polys, {
+      renderer: projRenderer, stroke: false, fill: true, fillOpacity: 0, interactive: false
+    }).addTo(map);
+  }
+  if (!svg.querySelector("#amb-clip")) {
+    let defs = svg.querySelector("defs");
+    if (!defs) { defs = document.createElementNS(SVGNS, "defs"); svg.insertBefore(defs, svg.firstChild); }
+    capaAMBclip._path.id = "amb-clip-src";
+    const clip = document.createElementNS(SVGNS, "clipPath");
+    clip.setAttribute("id", "amb-clip");
+    clip.setAttribute("clipPathUnits", "userSpaceOnUse");
+    const use = document.createElementNS(SVGNS, "use");
+    use.setAttribute("href", "#amb-clip-src");
+    use.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", "#amb-clip-src");
+    clip.appendChild(use);
+    defs.appendChild(clip);
+  }
+  projRenderer._rootGroup.setAttribute("clip-path", "url(#amb-clip)");
+}
+
+// Càrrega mandrosa: només es baixa el GeoJSON el primer cop que s'activa.
+let capaIncrement = null, incrementCarregant = false;
+function activaIncrement() {
+  if (capaIncrement) { capaIncrement.addTo(map); aplicaRetallAMB(); return; }
+  if (incrementCarregant) return;
+  incrementCarregant = true;
+  fetch("temp_increment_2011_2040.geojson")
+    .then((r) => r.json())
+    .then((data) => {
+      capaIncrement = L.geoJSON(data, {
+        renderer: projRenderer,
+        style: estilIncrement,
+        onEachFeature: onEachIncrement
+      });
+      incrementCarregant = false;
+      // Respecta la selecció actual (per si ha canviat mentre carregava)
+      if (document.getElementById("sel-temp").value === "increment") {
+        capaIncrement.addTo(map);
+        aplicaRetallAMB();
+      }
+    })
+    .catch((err) => { incrementCarregant = false; console.error("Error carregant la projecció 2011–2040:", err); });
+}
+
 /* ---------- 2. Simbologia IVAC (paleta Spectral) ---------- */
 // Rampa Spectral CONTÍNUA: interpola el color segons el valor 0–100.
 // Blau (0, poc vulnerable) → verd → groc → taronja → vermell (100, molt vulnerable).
@@ -218,6 +397,7 @@ function foratsAMB(data) {
 
 /* ---------- 5. Càrrega de dades ---------- */
 let capaIVAC, capaAMB, capaMascara, capaRefugis;
+let dadesAMB = null;   // geometria dels municipis, per retallar la projecció
 
 // 5.1 Capa IVAC (zones urbanes)
 fetch("IVAC.geojson")
@@ -237,6 +417,7 @@ fetch("IVAC.geojson")
 fetch("AMB_municipis.geojson")
   .then((r) => r.json())
   .then((data) => {
+    dadesAMB = data;   // desa la geometria per al retall de la projecció
     capaAMB = L.geoJSON(data, {
       style: estilAMBclar,       // el mapa base per defecte és clar → línia fosca
       interactive: false          // deixa passar els clics cap a la capa IVAC
@@ -253,7 +434,7 @@ fetch("AMB_municipis.geojson")
       [MON_EXTERIOR, ...foratsAMB(data)],
       Object.assign({ renderer: L.svg() }, estilMascaraClar)
     ).addTo(map);
-    if (!document.getElementById("chk-mascara").checked) map.removeLayer(capaMascara);
+    // La màscara spotlight és fixa (sempre activa); no té control propi.
 
     capaAMB.bringToFront();
     if (!document.getElementById("chk-amb").checked) map.removeLayer(capaAMB);
@@ -367,7 +548,7 @@ function configurarNavegacio() {
   function enquadra(bounds) {
     const plegat = document.getElementById("app").classList.contains("collapsed");
     map.fitBounds(bounds, {
-      paddingTopLeft: [plegat ? 20 : 345, 20],
+      paddingTopLeft: [plegat ? 20 : 435, 20],
       paddingBottomRight: [25, 25]
     });
   }
@@ -379,6 +560,9 @@ function configurarNavegacio() {
     enquadra(boundsAMB);
     sel.value = "";
   });
+
+  // Enquadrament inicial: desplaça l'AMB a la dreta perquè no quedi sota la barra
+  enquadra(boundsAMB);
 }
 
 /* ---------- 6. Controls de la barra lateral ---------- */
@@ -411,15 +595,86 @@ document.getElementById("chk-amb").addEventListener("change", function () {
   if (this.checked) { capaAMB.addTo(map); capaAMB.bringToFront(); }
   else map.removeLayer(capaAMB);
 });
-document.getElementById("chk-mascara").addEventListener("change", function () {
-  if (!capaMascara) return;
-  if (this.checked) { capaMascara.addTo(map); capaMascara.bringToBack(); }
-  else map.removeLayer(capaMascara);
-});
 document.getElementById("chk-refugis").addEventListener("change", function () {
   if (!capaRefugis) return;
   if (this.checked) capaRefugis.addTo(map);
   else map.removeLayer(capaRefugis);
+});
+// Recorda l'opacitat de l'IVAC abans d'abaixar-la automàticament amb la temperatura
+let opacIVACabansTemp = null;
+
+// Ajusta l'opacitat de l'IVAC i sincronitza el control lliscant de la llegenda
+function posaOpacitatIVAC(val) {
+  opacitatIVAC = val;
+  if (capaIVAC) capaIVAC.setStyle({ fillOpacity: opacitatIVAC });
+  const slider = document.getElementById("rang-opacitat");
+  if (slider) slider.value = val;
+}
+
+// Selector de capa de temperatura (exclusiu): mitjana anual, increment, o cap.
+function aplicaSeleccioTemp(val) {
+  // Neteja: treu totes dues capes i restaura l'opacitat de l'IVAC si calia
+  map.removeLayer(capaTemp);
+  if (capaIncrement) map.removeLayer(capaIncrement);
+  if (opacIVACabansTemp !== null) { posaOpacitatIVAC(opacIVACabansTemp); opacIVACabansTemp = null; }
+  const lt = document.getElementById("legend-temp");
+  const li = document.getElementById("legend-increment");
+  if (lt) lt.hidden = true;
+  if (li) li.hidden = true;
+
+  if (val === "mitjana") {
+    capaTemp.addTo(map);
+    opacIVACabansTemp = opacitatIVAC;   // abaixa l'IVAC per fer-la comparable
+    posaOpacitatIVAC(0.35);
+    if (lt) lt.hidden = false;
+  } else if (val === "increment") {
+    activaIncrement();
+    if (li) li.hidden = false;
+  }
+}
+document.getElementById("sel-temp").addEventListener("change", function () {
+  aplicaSeleccioTemp(this.value);
+});
+
+/* ---------- Valor en clicar ---------- */
+// L'increment és vectorial: ja mostra el valor amb el popup del polígon.
+// La mitjana anual és un ràster: en clicar, consultem el valor del píxel al
+// servei amb l'operació "identify" i el mostrem en un popup.
+function identifyTemp(latlng) {
+  const size = map.getSize();
+  const b = map.getBounds();
+  const sw = L.CRS.EPSG3857.project(b.getSouthWest());
+  const ne = L.CRS.EPSG3857.project(b.getNorthEast());
+  const p = L.CRS.EPSG3857.project(latlng);
+  const url = `${TEMP_BASE}/identify?f=json&geometryType=esriGeometryPoint` +
+    `&geometry=${p.x},${p.y}&sr=3857&layers=all&tolerance=2&returnGeometry=false` +
+    `&mapExtent=${sw.x},${sw.y},${ne.x},${ne.y}&imageDisplay=${size.x},${size.y},96`;
+  fetch(url)
+    .then((r) => r.json())
+    .then((d) => {
+      const res = d.results && d.results[0];
+      const raw = res && res.attributes &&
+        (res.attributes["Stretch.Pixel Value"] || res.attributes["Pixel Value"]);
+      const val = raw != null ? parseFloat(raw) : NaN;
+      if (isNaN(val)) return;
+      L.popup({ maxWidth: 240 })
+        .setLatLng(latlng)
+        .setContent(
+          `<div class="popup-ivac">
+             <span class="popup-overline">Temperatura mitjana anual (1981–2010)</span>
+             <div class="comp-head" style="margin-top:3px">
+               <span class="comp-name">Temperatura</span>
+               <span class="comp-val comp-val-total">${val.toFixed(1)} °C</span>
+             </div>
+           </div>`)
+        .openOn(map);
+    })
+    .catch(() => {});
+}
+map.on("click", function (e) {
+  const sel = document.getElementById("sel-temp").value;
+  if (sel === "mitjana") { map.closePopup(); identifyTemp(e.latlng); }
+  else if (sel === "increment") identifyIncrement(e.latlng);
 });
 
 /* ---------- Llegenda + transparència (targeta flotant al mapa) ---------- */
@@ -441,16 +696,59 @@ controlLlegenda.onAdd = function () {
     <div class="map-legend-opacitat">
       <label for="rang-opacitat">Transparència de la capa</label>
       <input type="range" id="rang-opacitat" min="0" max="1" step="0.05" value="${opacitatIVAC}">
+    </div>
+    <div class="map-legend-temp" id="legend-temp" hidden>
+      <h4 class="map-legend-title">Temperatura mitjana anual (1981–2010)</h4>
+      <div class="legend-vert">
+        <div class="legend-ramp-v legend-ramp-temp"></div>
+        <div class="legend-ramp-v-labels">
+          <span><b>17 °C</b> · Més calor</span>
+          <span>16</span>
+          <span>15</span>
+          <span>14</span>
+          <span><b>13 °C</b> · Menys calor</span>
+        </div>
+      </div>
+      <div class="map-legend-opacitat">
+        <label for="rang-opacitat-temp">Transparència de la capa</label>
+        <input type="range" id="rang-opacitat-temp" min="0" max="1" step="0.05" value="0.7">
+      </div>
+    </div>
+    <div class="map-legend-temp" id="legend-increment" hidden>
+      <h4 class="map-legend-title">Increment de temperatura 2011–2040 (RCP4.5)</h4>
+      <div class="legend-vert">
+        <div class="legend-ramp-v legend-ramp-incr"></div>
+        <div class="legend-ramp-v-labels">
+          <span><b>+2,5 °C</b> · Més escalfament</span>
+          <span>+2,0</span>
+          <span>+1,5</span>
+          <span><b>+1,0 °C</b> · Menys escalfament</span>
+        </div>
+      </div>
+      <div class="legend-nota">Δ°C respecte al període de referència 1971–2000</div>
+      <div class="map-legend-opacitat">
+        <label for="rang-opacitat-incr">Transparència de la capa</label>
+        <input type="range" id="rang-opacitat-incr" min="0" max="1" step="0.05" value="0.8">
+      </div>
     </div>`;
 
   // Evita que interactuar amb la targeta mogui el mapa
   L.DomEvent.disableClickPropagation(div);
   L.DomEvent.disableScrollPropagation(div);
 
-  // Connecta el control de transparència
+  // Connecta el control de transparència de l'IVAC
   div.querySelector("#rang-opacitat").addEventListener("input", function () {
     opacitatIVAC = parseFloat(this.value);
     if (capaIVAC) capaIVAC.setStyle({ fillOpacity: opacitatIVAC });
+  });
+  // Connecta el control de transparència de la temperatura
+  div.querySelector("#rang-opacitat-temp").addEventListener("input", function () {
+    capaTemp.setOpacity(parseFloat(this.value));
+  });
+  // Connecta el control de transparència de l'increment projectat
+  div.querySelector("#rang-opacitat-incr").addEventListener("input", function () {
+    opacitatIncr = parseFloat(this.value);
+    if (capaIncrement) capaIncrement.setStyle({ fillOpacity: opacitatIncr });
   });
 
   return div;
