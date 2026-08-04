@@ -712,11 +712,9 @@ document.querySelectorAll('input[name="basemap"]').forEach((r) => {
 
 // Interruptors de capes temàtiques
 document.getElementById("chk-ivac").addEventListener("change", function () {
-  if (capaIVAC) {
-    if (this.checked) { capaIVAC.addTo(map); if (capaAMB) capaAMB.bringToFront(); }
-    else map.removeLayer(capaIVAC);
-  }
-  actualitzaColorModeDisponible();
+  if (!capaIVAC) return;
+  if (this.checked) { capaIVAC.addTo(map); if (capaAMB) capaAMB.bringToFront(); }
+  else map.removeLayer(capaIVAC);
 });
 document.getElementById("chk-amb").addEventListener("change", function () {
   if (!capaAMB) return;
@@ -729,36 +727,43 @@ document.getElementById("chk-refugis").addEventListener("change", function () {
   else map.removeLayer(capaRefugis);
 });
 
-// Coloració de la capa IVAC: "vuln" (rampa Spectral 0–100) o "biv" (bivariant
-// × distància al refugi més proper). No és una capa a part, sinó una manera de
-// pintar la mateixa capa; per això viu dins del grup de vulnerabilitat i en
-// canvia alhora l'estil i el popup.
-function aplicaColoracio(mode) {
-  const biv = (mode === "biv");
-  if (biv && !calculaBivariant()) {   // dades encara no llestes: torna a vulnerabilitat
-    document.getElementById("col-vuln").checked = true;
-    console.warn("Coloració bivariant: dades encara no carregades (IVAC o refugis).");
-    return;
+// Anàlisi combinada (síntesi): la vista bivariant = vulnerabilitat × distància al
+// refugi més proper. No és una capa nova, sinó una recoloració de les seccions de
+// l'IVAC; mentre és activa "pren" la capa de vulnerabilitat (l'encén i en bloqueja
+// la casella) i n'intercanvia l'estil i el popup.
+function aplicaSintesi(actiu) {
+  const chkBiv = document.getElementById("chk-biv");
+  const chkI = document.getElementById("chk-ivac");
+  if (actiu) {
+    if (!calculaBivariant()) {   // dades encara no llestes: desactiva i avisa
+      chkBiv.checked = false;
+      console.warn("Anàlisi combinada: dades encara no carregades (IVAC o refugis).");
+      return;
+    }
+    modeBivariant = true;
+    if (capaIVAC && !chkI.checked) {   // la síntesi necessita les seccions visibles
+      chkI.checked = true;
+      capaIVAC.addTo(map);
+      if (capaAMB) capaAMB.bringToFront();
+    }
+    chkI.disabled = true;   // la capa de vulnerabilitat queda en ús per la síntesi
+  } else {
+    modeBivariant = false;
+    chkI.disabled = false;
   }
-  modeBivariant = biv;
+  const fila = document.getElementById("ivac-layerrow");
+  const nota = document.getElementById("ivac-locknote");
+  if (fila) fila.classList.toggle("locked", actiu);
+  if (nota) nota.hidden = !actiu;
   if (capaIVAC) capaIVAC.setStyle(estilIVAC);   // reaplica l'estil; resetStyle i el popup respecten el mode
   const uni = document.getElementById("legend-ivac-uni");
   const lg = document.getElementById("legend-biv");
-  if (uni) uni.hidden = biv;
-  if (lg) lg.hidden = !biv;
+  if (uni) uni.hidden = actiu;
+  if (lg) lg.hidden = !actiu;
 }
-document.querySelectorAll('input[name="ivac-color"]').forEach((r) => {
-  r.addEventListener("change", function () { if (this.checked) aplicaColoracio(this.value); });
+document.getElementById("chk-biv").addEventListener("change", function () {
+  aplicaSintesi(this.checked);
 });
-
-// El selector de coloració només té sentit si la capa IVAC és visible.
-function actualitzaColorModeDisponible() {
-  const on = document.getElementById("chk-ivac").checked;
-  const box = document.getElementById("ivac-colormode");
-  if (box) box.classList.toggle("disabled", !on);
-  document.querySelectorAll('input[name="ivac-color"]').forEach((r) => { r.disabled = !on; });
-}
-actualitzaColorModeDisponible();
 // Recorda l'opacitat de l'IVAC abans d'abaixar-la automàticament amb la temperatura
 let opacIVACabansTemp = null;
 

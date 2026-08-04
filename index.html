@@ -20,8 +20,9 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
-  <!-- Estils propis -->
-  <link rel="stylesheet" href="style.css">
+  <!-- Estils propis. El ?v=N força el navegador a baixar la versió nova en
+       cada desplegament (evita la cau): puja el número quan canviïs el CSS. -->
+  <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 
@@ -73,21 +74,11 @@
 
           <div class="layer-group">
             <h3 class="layer-group-title">Vulnerabilitat social</h3>
-            <label class="ctrl-row">
+            <label class="ctrl-row" id="ivac-layerrow">
               <input type="checkbox" id="chk-ivac" checked>
               <span><span class="swatch-ivac"></span>Índex de Vulnerabilitat (IVAC)</span>
             </label>
-            <div class="color-mode" id="ivac-colormode">
-              <span class="color-mode-label">Coloració</span>
-              <label class="ctrl-row ctrl-sub">
-                <input type="radio" name="ivac-color" id="col-vuln" value="vuln" checked>
-                <span>Vulnerabilitat (0–100)</span>
-              </label>
-              <label class="ctrl-row ctrl-sub">
-                <input type="radio" name="ivac-color" id="col-biv" value="biv">
-                <span>Bivariant: × distància a refugis</span>
-              </label>
-            </div>
+            <p class="lock-note" id="ivac-locknote" hidden>En ús per l'anàlisi combinada.</p>
           </div>
 
           <div class="layer-group">
@@ -96,6 +87,17 @@
               <input type="checkbox" id="chk-refugis" checked>
               <span><span class="dot-refugi"></span>Refugis climàtics (AMB)</span>
             </label>
+          </div>
+
+          <!-- Síntesi derivada: creua vulnerabilitat × resposta. No és una pota,
+               sinó el que surt de combinar-ne dues; per això té secció pròpia. -->
+          <div class="analysis-block">
+            <h3 class="layer-group-title">Anàlisi combinada</h3>
+            <label class="ctrl-row analysis-row">
+              <input type="checkbox" id="chk-biv">
+              <span>Vista bivariant: vulnerabilitat × refugis</span>
+            </label>
+            <p class="capa-nota analysis-nota">Creua les seccions de vulnerabilitat amb la proximitat als refugis per veure el dèficit de resposta. En activar-la, pren la capa de vulnerabilitat i la recolora.</p>
           </div>
 
           <!-- Capa de context, deliberadament secundària -->
@@ -165,7 +167,8 @@
   <!-- Leaflet.markercluster JS -->
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
-  <!-- Lògica del visor -->
-  <script src="app.js"></script>
+  <!-- Lògica del visor. El ?v=N força a baixar la versió nova en cada
+       desplegament (evita la cau): puja el número quan canviïs el JS. -->
+  <script src="app.js?v=3"></script>
 </body>
 </html>

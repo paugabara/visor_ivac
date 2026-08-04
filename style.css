@@ -160,24 +160,53 @@ html, body {
 }
 .ctrl-row input { accent-color: #9C3D1A; cursor: pointer; }
 
-/* ----- Selector de coloració de la capa IVAC (vulnerabilitat o bivariant) -----
-   El bivariant no és una capa a part, sinó una manera de pintar l'IVAC; el
-   selector viu, doncs, sagnat sota la casella de la capa. */
-.color-mode {
-  margin: 5px 0 2px 24px;
-  padding-left: 10px;
-  border-left: 2px solid #E3D3C8;
+/* ----- Anàlisi combinada: síntesi derivada (vulnerabilitat × resposta) -----
+   No és una pota del risc, sinó el que surt de combinar-ne dues; té secció pròpia
+   després de les tres, dins una targeta que la distingeix de les capes. */
+.analysis-block {
+  margin: 14px 0 10px;
+  padding: 9px 11px;
+  background: #FBF5F0;
+  border: 1px solid #E9D9CD;
+  border-radius: 6px;
 }
-.color-mode-label {
-  display: block;
-  margin: 2px 0;
+.analysis-nota { margin: 4px 0 0; }
+
+/* Interruptor de la síntesi: el checkbox es dibuixa com a toggle (és un mode, no
+   una capa), per distingir-lo dels interruptors de capa. */
+.analysis-row input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  width: 30px;
+  height: 17px;
+  border-radius: 999px;
+  background: #cfc4bb;
+  transition: background 0.15s;
+  flex: 0 0 auto;
+}
+.analysis-row input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+.analysis-row input[type="checkbox"]:checked { background: #9C3D1A; }
+.analysis-row input[type="checkbox"]:checked::after { transform: translateX(13px); }
+
+/* Capa de vulnerabilitat "presa" per la síntesi: atenuada i amb nota */
+.ctrl-row.locked { opacity: 0.5; }
+.lock-note {
+  margin: 0 0 4px 24px;
   font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #999;
+  font-style: italic;
+  color: #9C3D1A;
 }
-.ctrl-sub { font-size: 0.78rem; padding: 2px 0; }
-.color-mode.disabled { opacity: 0.45; pointer-events: none; }
 
 /* Popup en mode bivariant: la matriu 3×3 amb la cel·la de la zona ressaltada */
 .popup-biv-matrix { margin: 8px 0 2px; }
