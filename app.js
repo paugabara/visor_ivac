@@ -280,7 +280,16 @@ const BIV_M = [
 ];
 let modeBivariant = false;   // el mode d'anàlisi és actiu?
 let bivReady = false;        // ja s'ha calculat el color bivariant per secció?
-let refugiPunts = [];        // [lat,lng] de tots els refugis, per a les distàncies
+let refugiPunts = [];        // [lat,lng] de tots els refugis (capa de punts)
+let distXarxa = null;        // distància per la xarxa viària de cada polígon (m), en ordre
+let ivacIdx = 0;             // índex correlatiu de polígon, per casar-lo amb distXarxa
+
+// Distància a peu al refugi més proper, precalculada offline (build_dist_refugi.py):
+// array indexat EN EL MATEIX ORDRE que les features d'IVAC.geojson.
+fetch("dist_refugi.json")
+  .then((r) => r.json())
+  .then((d) => { distXarxa = d; })
+  .catch(() => { console.warn("dist_refugi.json no trobat: la vista bivariant el necessita."); });
 
 function estilIVAC(feature) {
   // En mode bivariant, el color surt de la matriu 3×3 (precalculat a _biv).
@@ -301,29 +310,19 @@ function estilIVAC(feature) {
   };
 }
 
-// Calcula la classe bivariant de cada secció (IVAC × distància al refugi més proper)
-// i desa el color resultant a feature.properties._biv. Un sol cop: després es cacheja.
+// Calcula la classe bivariant de cada secció (IVAC × distància a peu al refugi més
+// proper) i desa el color resultant a feature.properties._biv. Un sol cop: es cacheja.
+// La distància ve precalculada per la xarxa viària (dist_refugi.json), indexada per
+// l'ordre de les features.
 function calculaBivariant() {
   if (bivReady) return true;
-  if (!capaIVAC || !refugiPunts.length) return false;
-  const R = 6371000, rad = Math.PI / 180;
-  function distMinim(lat, lng) {
-    const cosLat = Math.cos(lat * rad);
-    let best = Infinity;
-    for (let i = 0; i < refugiPunts.length; i++) {
-      const dLat = refugiPunts[i][0] - lat;
-      const dLng = (refugiPunts[i][1] - lng) * cosLat;   // aprox. equirectangular
-      const d = dLat * dLat + dLng * dLng;               // monotònic: n'hi ha prou per comparar
-      if (d < best) best = d;
-    }
-    return Math.sqrt(best) * rad * R;                     // metres
-  }
+  if (!capaIVAC || !distXarxa) return false;
   const files = [], valsIVAC = [], valsDist = [];
   capaIVAC.eachLayer((ly) => {
-    const v = Number(ly.feature.properties.IVAC);
-    if (!isFinite(v)) { ly.feature.properties._biv = null; return; }
-    const c = ly.getBounds().getCenter();
-    const dm = distMinim(c.lat, c.lng);
+    const p = ly.feature.properties;
+    const v = Number(p.IVAC);
+    const dm = distXarxa[p._idx];                        // metres per carrer (o null si sense xarxa)
+    if (!isFinite(v) || dm == null) { p._biv = null; return; }
     files.push([ly.feature, v, dm]);
     valsIVAC.push(v); valsDist.push(dm);
   });
@@ -467,6 +466,7 @@ function popupBivariantHtml(feature) {
 }
 
 function onEachIVAC(feature, layer) {
+  feature.properties._idx = ivacIdx++;   // índex correlatiu per casar amb distXarxa
   // Popup dinàmic: s'avalua en obrir-se, de manera que sempre ensenya les dades
   // de la representació activa (vulnerabilitat o bivariant).
   layer.bindPopup(
@@ -870,7 +870,7 @@ controlLlegenda.onAdd = function () {
         </div>
       </div>
       <div class="biv-axis-x">Més vulnerable (IVAC) →</div>
-      <div class="legend-nota">El <b>racó fosc</b> = seccions molt vulnerables i lluny de tot refugi (prioritat d'actuació). Distància en línia recta al refugi més proper; talls per tercils.</div>
+      <div class="legend-nota">El <b>racó fosc</b> = seccions molt vulnerables i lluny de tot refugi (prioritat d'actuació). Distància per la xarxa viària (a peu) al refugi més proper; talls per tercils.</div>
     </div>
     <div class="map-legend-opacitat">
       <label for="rang-opacitat">Transparència de la capa</label>
