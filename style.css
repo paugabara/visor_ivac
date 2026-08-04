@@ -131,6 +131,23 @@ html, body {
   color: #C9662F;
 }
 
+/* ----- Grups temàtics del control de capes (marc: exposició / vulnerabilitat / resposta) ----- */
+.layer-group { margin: 11px 0; }
+.layer-group-title {
+  margin: 0 0 4px;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: #C9662F;
+}
+.group-cap {
+  display: block;
+  margin: 0 0 3px;
+  font-size: 0.74rem;
+  color: #777;
+}
+
 /* ----- Files de control (radios / checkboxes) ----- */
 .ctrl-row {
   display: flex;
@@ -142,6 +159,60 @@ html, body {
   cursor: pointer;
 }
 .ctrl-row input { accent-color: #9C3D1A; cursor: pointer; }
+
+/* ----- Bloc de mode d'anàlisi: no és una capa, és una transformació de l'IVAC ----- */
+.mode-block {
+  margin: 12px 0 10px;
+  padding: 9px 11px;
+  background: #FBF5F0;
+  border: 1px solid #E9D9CD;
+  border-radius: 6px;
+}
+.mode-title {
+  margin: 0 0 3px;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: #9C3D1A;
+}
+.mode-nota { margin: 4px 0 0; }
+/* Interruptor: el checkbox del mode es dibuixa com a toggle per distingir-lo
+   visualment dels interruptors de capa (és un mode, no una capa). */
+.mode-row input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  width: 30px;
+  height: 17px;
+  border-radius: 999px;
+  background: #cfc4bb;
+  transition: background 0.15s;
+  flex: 0 0 auto;
+}
+.mode-row input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+.mode-row input[type="checkbox"]:checked { background: #9C3D1A; }
+.mode-row input[type="checkbox"]:checked::after { transform: translateX(13px); }
+
+/* ----- Capa de context (límits municipals), deliberadament secundària ----- */
+.ctrl-context {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #eee;
+  font-size: 0.75rem;
+  color: #888;
+}
+.ctrl-context input { accent-color: #b9a99d; }
 
 .range-full { width: 100%; cursor: pointer; accent-color: #9C3D1A; }
 
@@ -293,6 +364,39 @@ html, body {
     #4a0d78 100%);
 }
 
+/* ----- Llegenda del mode bivariant (matriu 3×3) ----- */
+.biv-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+.biv-axis-y {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 0.6rem;
+  color: #555;
+  white-space: nowrap;
+}
+.biv-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 22px);
+  grid-template-rows: repeat(3, 22px);
+  gap: 2px;
+}
+.biv-grid i {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 2px;
+}
+.biv-axis-x {
+  font-size: 0.6rem;
+  color: #555;
+  margin-top: 4px;
+  padding-left: 22px;
+}
+
 /* Llegenda de classes discretes (no s'usa ara; es conserva per si de cas) */
 .legend-classes {
   margin-top: 4px;
@@ -344,6 +448,22 @@ html, body {
   background: linear-gradient(to right,
     #2b83ba, #abdda4, #ffffbf, #fdae61, #d7191c);
 }
+
+/* Pastilles de to dels mapes base: mateix llenguatge visual que les icones de
+   capa, i alhora una mini-previsualització del to de cada fons. */
+.bm-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  border-radius: 3px;
+  vertical-align: middle;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+.bm-positron { background: #f4f1ec; }
+.bm-dataviz  { background: linear-gradient(135deg, #dce7ec, #cfe0d3); }
+.bm-dark     { background: #1b1f27; }
+.bm-esri     { background: linear-gradient(135deg, #4f6d3f, #8a7b4f); }
 
 /* ===== Símbol del nord ===== */
 .nord-control {
@@ -483,19 +603,29 @@ html, body {
   vertical-align: middle;
 }
 
-/* Clústers en to índic (per no confondre's amb la rampa Spectral de l'IVAC) */
+/* Clústers en to índic (fora de la rampa Spectral de l'IVAC) i deliberadament
+   DISCRETS: halo tènue i disc interior més petit, perquè la resposta pública no
+   eclipsi la coropleta de vulnerabilitat, que és la lectura principal. */
 .marker-cluster-small,
 .marker-cluster-medium,
-.marker-cluster-large { background-color: rgba(79, 70, 229, 0.25); }
+.marker-cluster-large { background-color: rgba(79, 70, 229, 0.14); }
 .marker-cluster-small div,
 .marker-cluster-medium div,
-.marker-cluster-large div { background-color: rgba(79, 70, 229, 0.85); }
+.marker-cluster-large div {
+  background-color: rgba(79, 70, 229, 0.72);
+  width: 26px;
+  height: 26px;
+  margin-left: 7px;
+  margin-top: 7px;
+  border-radius: 13px;
+}
 .marker-cluster div {
   color: #fff;
   font-family: "Inter", "Segoe UI", Arial, sans-serif;
-  font-weight: 600;
+  font-weight: 500;
+  font-size: 0.72rem;
 }
-.marker-cluster span { line-height: 30px; }
+.marker-cluster span { line-height: 26px; }
 
 /* Popup del refugi — mateixa paleta terracota que la interfície i el popup IVAC */
 .popup-refugi { font-size: 0.85rem; min-width: 210px; }

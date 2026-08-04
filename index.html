@@ -58,13 +58,12 @@
 
         <section class="panel">
           <h2 class="panel-title">Capes d'informació</h2>
-          <label class="ctrl-row">
-            <input type="checkbox" id="chk-ivac" checked>
-            <span><span class="swatch-ivac"></span>Índex de Vulnerabilitat (IVAC)</span>
-          </label>
 
-          <div class="subpanel">
-            <h3 class="subpanel-title">Temperatura</h3>
+          <!-- Les capes s'agrupen segons les tres potes del risc de calor que
+               narra la introducció: exposició física, vulnerabilitat i resposta. -->
+          <div class="layer-group">
+            <h3 class="layer-group-title">Exposició a la calor</h3>
+            <label class="group-cap" for="sel-temp">Temperatura</label>
             <select id="sel-temp" class="select-full">
               <option value="">Cap</option>
               <option value="mitjana">Mitjana anual (1981–2010)</option>
@@ -72,11 +71,34 @@
             </select>
           </div>
 
-          <label class="ctrl-row">
-            <input type="checkbox" id="chk-refugis" checked>
-            <span><span class="dot-refugi"></span>Refugis climàtics (AMB)</span>
-          </label>
-          <label class="ctrl-row">
+          <div class="layer-group">
+            <h3 class="layer-group-title">Vulnerabilitat social</h3>
+            <label class="ctrl-row">
+              <input type="checkbox" id="chk-ivac" checked>
+              <span><span class="swatch-ivac"></span>Índex de Vulnerabilitat (IVAC)</span>
+            </label>
+          </div>
+
+          <div class="layer-group">
+            <h3 class="layer-group-title">Resposta pública</h3>
+            <label class="ctrl-row">
+              <input type="checkbox" id="chk-refugis" checked>
+              <span><span class="dot-refugi"></span>Refugis climàtics (AMB)</span>
+            </label>
+          </div>
+
+          <!-- Mode d'anàlisi: no és una capa, sinó una transformació de l'IVAC. -->
+          <div class="mode-block">
+            <h3 class="mode-title">Anàlisi combinada</h3>
+            <label class="ctrl-row mode-row">
+              <input type="checkbox" id="chk-biv">
+              <span>Vista bivariant: vulnerabilitat × refugis</span>
+            </label>
+            <p class="capa-nota mode-nota">Recolora l'IVAC creuant la vulnerabilitat amb la distància al refugi més proper.</p>
+          </div>
+
+          <!-- Capa de context, deliberadament secundària -->
+          <label class="ctrl-row ctrl-context">
             <input type="checkbox" id="chk-amb" checked>
             <span>Límits municipals (AMB)</span>
           </label>
@@ -94,19 +116,19 @@
           <h2 class="panel-title">Mapa base</h2>
           <label class="ctrl-row">
             <input type="radio" name="basemap" value="positron" checked>
-            <span>CartoDB Positron</span>
+            <span><span class="bm-swatch bm-positron"></span>CartoDB Positron</span>
           </label>
           <label class="ctrl-row">
             <input type="radio" name="basemap" value="dataviz">
-            <span>MapTiler Dataviz</span>
+            <span><span class="bm-swatch bm-dataviz"></span>MapTiler Dataviz</span>
           </label>
           <label class="ctrl-row">
             <input type="radio" name="basemap" value="dark">
-            <span>CartoDB Dark Matter</span>
+            <span><span class="bm-swatch bm-dark"></span>CartoDB Dark Matter</span>
           </label>
           <label class="ctrl-row">
             <input type="radio" name="basemap" value="esri">
-            <span>Esri World Imagery</span>
+            <span><span class="bm-swatch bm-esri"></span>Esri World Imagery</span>
           </label>
         </section>
 

@@ -268,7 +268,30 @@ function getColor(v) {
 // Opacitat de reblert (controlable des de la barra lateral)
 let opacitatIVAC = 0.75;
 
+/* ---------- 2 bis. Mode bivariant: Vulnerabilitat (IVAC) × dèficit de resposta ----------
+   Recolora la MATEIXA capa IVAC creuant dues variables en una escala 3×3:
+   files = distància al refugi més proper (a prop → lluny), columnes = IVAC (baix → alt).
+   El racó FOSC (inferior dret) marca les seccions alhora molt vulnerables i lluny de tot
+   refugi: la resposta pública on més falta. Es calcula al client i es cacheja. */
+const BIV_M = [
+  ["#e8e8e8", "#b0d5df", "#64acbe"],  // a prop d'un refugi
+  ["#e4acac", "#ad9ea5", "#627f8c"],  // distància mitjana
+  ["#c85a5a", "#985356", "#574249"]   // lluny de tot refugi
+];
+let modeBivariant = false;   // el mode d'anàlisi és actiu?
+let bivReady = false;        // ja s'ha calculat el color bivariant per secció?
+let refugiPunts = [];        // [lat,lng] de tots els refugis, per a les distàncies
+
 function estilIVAC(feature) {
+  // En mode bivariant, el color surt de la matriu 3×3 (precalculat a _biv).
+  if (modeBivariant) {
+    const c = feature.properties._biv;
+    return {
+      fillColor: c || "#e8e8e8",
+      fillOpacity: c ? opacitatIVAC : 0,   // seccions sense IVAC: transparents
+      color: "#ffffff", weight: 0.15, opacity: 0.4
+    };
+  }
   return {
     fillColor: getColor(feature.properties.IVAC),
     fillOpacity: opacitatIVAC,
@@ -276,6 +299,46 @@ function estilIVAC(feature) {
     weight: 0.2,
     opacity: 0.5
   };
+}
+
+// Calcula la classe bivariant de cada secció (IVAC × distància al refugi més proper)
+// i desa el color resultant a feature.properties._biv. Un sol cop: després es cacheja.
+function calculaBivariant() {
+  if (bivReady) return true;
+  if (!capaIVAC || !refugiPunts.length) return false;
+  const R = 6371000, rad = Math.PI / 180;
+  function distMinim(lat, lng) {
+    const cosLat = Math.cos(lat * rad);
+    let best = Infinity;
+    for (let i = 0; i < refugiPunts.length; i++) {
+      const dLat = refugiPunts[i][0] - lat;
+      const dLng = (refugiPunts[i][1] - lng) * cosLat;   // aprox. equirectangular
+      const d = dLat * dLat + dLng * dLng;               // monotònic: n'hi ha prou per comparar
+      if (d < best) best = d;
+    }
+    return Math.sqrt(best) * rad * R;                     // metres
+  }
+  const files = [], valsIVAC = [], valsDist = [];
+  capaIVAC.eachLayer((ly) => {
+    const v = Number(ly.feature.properties.IVAC);
+    if (!isFinite(v)) { ly.feature.properties._biv = null; return; }
+    const c = ly.getBounds().getCenter();
+    const dm = distMinim(c.lat, c.lng);
+    files.push([ly.feature, v, dm]);
+    valsIVAC.push(v); valsDist.push(dm);
+  });
+  // Talls per tercils (33è i 66è percentil) de cada variable
+  const terciles = (a) => {
+    const s = a.slice().sort((x, y) => x - y);
+    return [s[(s.length / 3) | 0], s[(2 * s.length / 3) | 0]];
+  };
+  const [i1, i2] = terciles(valsIVAC), [d1, d2] = terciles(valsDist);
+  const classe = (x, a, b) => (x <= a ? 0 : (x <= b ? 1 : 2));
+  files.forEach(([f, v, dm]) => {
+    f.properties._biv = BIV_M[classe(dm, d1, d2)][classe(v, i1, i2)];
+  });
+  bivReady = true;
+  return true;
 }
 
 /* ---------- 3. Interacció per feature ---------- */
@@ -522,6 +585,11 @@ fetch("refugis_climatics.geojson")
     }).addTo(capaRefugis);
     capaRefugis.addTo(map);
     if (!document.getElementById("chk-refugis").checked) map.removeLayer(capaRefugis);
+    // Coordenades dels refugis [lat,lng] per al mode bivariant (distància a refugi)
+    refugiPunts = data.features
+      .map((f) => f.geometry && f.geometry.coordinates)
+      .filter((c) => c && c.length >= 2)
+      .map((c) => [c[1], c[0]]);
   })
   .catch((err) => console.error("Error carregant refugis_climatics.geojson:", err));
 
@@ -599,6 +667,36 @@ document.getElementById("chk-refugis").addEventListener("change", function () {
   if (!capaRefugis) return;
   if (this.checked) capaRefugis.addTo(map);
   else map.removeLayer(capaRefugis);
+});
+
+// Vista bivariant (mode d'anàlisi): recolora l'IVAC segons IVAC × distància a refugi.
+function aplicaBivariant(actiu) {
+  const chkBiv = document.getElementById("chk-biv");
+  if (actiu) {
+    // Necessita l'IVAC i els refugis carregats; si encara no hi són, desmarca i avisa.
+    if (!calculaBivariant()) {
+      chkBiv.checked = false;
+      console.warn("Vista bivariant: dades encara no carregades (IVAC o refugis).");
+      return;
+    }
+    modeBivariant = true;
+    const chkI = document.getElementById("chk-ivac");
+    if (!chkI.checked) {   // el mode viu sobre la capa IVAC: assegura-la activa
+      chkI.checked = true;
+      capaIVAC.addTo(map);
+      if (capaAMB) capaAMB.bringToFront();
+    }
+  } else {
+    modeBivariant = false;
+  }
+  if (capaIVAC) capaIVAC.setStyle(estilIVAC);   // reaplica l'estil (resetStyle en respecta el mode)
+  const uni = document.getElementById("legend-ivac-uni");
+  const biv = document.getElementById("legend-biv");
+  if (uni) uni.hidden = actiu;
+  if (biv) biv.hidden = !actiu;
+}
+document.getElementById("chk-biv").addEventListener("change", function () {
+  aplicaBivariant(this.checked);
 });
 // Recorda l'opacitat de l'IVAC abans d'abaixar-la automàticament amb la temperatura
 let opacIVACabansTemp = null;
@@ -682,16 +780,31 @@ const controlLlegenda = L.control({ position: "bottomright" });
 controlLlegenda.onAdd = function () {
   const div = L.DomUtil.create("div", "map-legend");
   div.innerHTML = `
-    <h4 class="map-legend-title">Índex de Vulnerabilitat (IVAC)</h4>
-    <div class="legend-vert">
-      <div class="legend-ramp-v"></div>
-      <div class="legend-ramp-v-labels">
-        <span><b>100</b> · Més vulnerable</span>
-        <span>75</span>
-        <span>50</span>
-        <span>25</span>
-        <span><b>0</b> · Menys vulnerable</span>
+    <div id="legend-ivac-uni">
+      <h4 class="map-legend-title">Índex de Vulnerabilitat (IVAC)</h4>
+      <div class="legend-vert">
+        <div class="legend-ramp-v"></div>
+        <div class="legend-ramp-v-labels">
+          <span><b>100</b> · Més vulnerable</span>
+          <span>75</span>
+          <span>50</span>
+          <span>25</span>
+          <span><b>0</b> · Menys vulnerable</span>
+        </div>
       </div>
+    </div>
+    <div class="map-legend-biv" id="legend-biv" hidden>
+      <h4 class="map-legend-title">Vulnerabilitat × dèficit de resposta</h4>
+      <div class="biv-wrap">
+        <span class="biv-axis-y">Més lluny d'un refugi →</span>
+        <div class="biv-grid">
+          <i style="background:#c85a5a"></i><i style="background:#985356"></i><i style="background:#574249"></i>
+          <i style="background:#e4acac"></i><i style="background:#ad9ea5"></i><i style="background:#627f8c"></i>
+          <i style="background:#e8e8e8"></i><i style="background:#b0d5df"></i><i style="background:#64acbe"></i>
+        </div>
+      </div>
+      <div class="biv-axis-x">Més vulnerable (IVAC) →</div>
+      <div class="legend-nota">El <b>racó fosc</b> = seccions molt vulnerables i lluny de tot refugi (prioritat d'actuació). Distància en línia recta al refugi més proper; talls per tercils.</div>
     </div>
     <div class="map-legend-opacitat">
       <label for="rang-opacitat">Transparència de la capa</label>
