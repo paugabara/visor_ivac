@@ -15,6 +15,11 @@ de confort tèrmic— permeten veure si l'oferta arriba a les zones més vulnera
 
 - **IVAC**: coropleta contínua (0–100) de les zones urbanes (seccions censals), amb
   **popup** de l'índex total i les 4 dimensions que l'integren.
+- **Vista bivariant** (coloració alternativa de l'IVAC): creua la vulnerabilitat de
+  cada secció amb la seva distància al refugi més proper en una **matriu de color 3×3**,
+  per detectar d'un cop d'ull les zones alhora molt vulnerables i allunyades de tot
+  refugi (dèficit de resposta). El popup mostra aquesta mateixa matriu amb la cel·la de
+  la zona ressaltada i el valor dels dos factors.
 - **Capes de temperatura** (excloents, triables amb un desplegable):
   - **Temperatura mitjana anual (1981–2010)** — capa ràster.
   - **Increment projectat 2011–2040 (RCP4.5)** — coropleta de l'increment (Δ°C)
@@ -72,4 +77,6 @@ Desenvolupat amb HTML, CSS i JavaScript sobre [Leaflet](https://leafletjs.com/),
 [Leaflet.markercluster](https://github.com/Leaflet/Leaflet.markercluster) per als
 refugis. La capa de temperatura ràster es pinta amb l'operació `export` d'un MapServer
 d'ArcGIS; la projecció d'increment és un GeoJSON retallat a l'AMB mitjançant un
-`clipPath` SVG. El pipeline de dades usa Python (biblioteca estàndard) i GitHub Actions.
+`clipPath` SVG. La **vista bivariant** es calcula al client (distància de cada secció
+al refugi més proper i classificació per tercils). El pipeline de dades usa Python
+(biblioteca estàndard) i GitHub Actions.
