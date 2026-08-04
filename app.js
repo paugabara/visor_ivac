@@ -335,7 +335,11 @@ function calculaBivariant() {
   const [i1, i2] = terciles(valsIVAC), [d1, d2] = terciles(valsDist);
   const classe = (x, a, b) => (x <= a ? 0 : (x <= b ? 1 : 2));
   files.forEach(([f, v, dm]) => {
-    f.properties._biv = BIV_M[classe(dm, d1, d2)][classe(v, i1, i2)];
+    const ci = classe(v, i1, i2), cd = classe(dm, d1, d2);
+    f.properties._biv = BIV_M[cd][ci];
+    f.properties._bivDist = dm;   // metres al refugi més proper
+    f.properties._bivCI = ci;     // classe de vulnerabilitat (0..2)
+    f.properties._bivCD = cd;     // classe de distància (0..2)
   });
   bivReady = true;
   return true;
@@ -382,7 +386,8 @@ const COMPONENTS = [
   }
 ];
 
-function onEachIVAC(feature, layer) {
+// Popup de la capa IVAC en mode "vulnerabilitat": índex global + 4 dimensions ACP.
+function popupIvacHtml(feature) {
   const p = feature.properties;
   const files = COMPONENTS.map((c, i) => {
     const val = p[c.key];
@@ -394,9 +399,7 @@ function onEachIVAC(feature, layer) {
               ${barraGradient(val)}
             </div>`;
   }).join("");
-
-  layer.bindPopup(
-    `<div class="popup-ivac">
+  return `<div class="popup-ivac">
        <span class="popup-overline">Zona urbana · secció censal</span>
        <b>${p.NOMMUNI ?? "—"}</b>
        <span class="popup-ref">Secció censal: ${p.MUNDISSEC ?? "—"}</span>
@@ -412,7 +415,62 @@ function onEachIVAC(feature, layer) {
          <span class="popup-ivac-nota">Passa el ratolí per sobre de cada dimensió per veure'n el detall.</span>
          <p class="popup-ivac-footnote"><b>Com llegir-ho:</b> cada factor va de 0 a 100 i indica com de vulnerable és aquesta zona en aquell aspecte comparada amb la resta (com més alt, més vulnerable). L'IVAC de dalt de tot és la valoració global de la zona: no és la suma ni la mitjana dels factors, sinó el resum de tots junts.</p>
        </div>
-     </div>`,
+     </div>`;
+}
+
+// Popup en mode "bivariant": ensenya la MATRIU 3×3 de la llegenda amb la cel·la
+// on se situa aquesta zona ressaltada, més el valor dels dos factors que la
+// determinen (vulnerabilitat + distància al refugi més proper).
+function popupBivariantHtml(feature) {
+  const p = feature.properties;
+  const iv = Number(p.IVAC);
+  const dist = p._bivDist;
+  const nivIVAC = ["baixa", "mitjana", "alta"][p._bivCI] || "—";
+  const nivDist = ["a prop", "distància intermèdia", "lluny"][p._bivCD] || "—";
+  const distTxt = (dist == null) ? "—"
+    : (dist < 1000 ? Math.round(dist) + " m" : (dist / 1000).toFixed(1) + " km");
+  const prioritat = (p._bivCI === 2 && p._bivCD === 2);
+  // Matriu 3×3: fila de dalt = més lluny (cd 2), columna de la dreta = més
+  // vulnerable (ci 2). Es ressalta la cel·la (cd, ci) d'aquesta secció.
+  let grid = "";
+  for (let domRow = 0; domRow < 3; domRow++) {
+    const cd = 2 - domRow;
+    for (let ci = 0; ci < 3; ci++) {
+      const on = (cd === p._bivCD && ci === p._bivCI);
+      grid += `<i style="background:${BIV_M[cd][ci]}"${on ? ' class="biv-cell-on"' : ''}></i>`;
+    }
+  }
+  return `<div class="popup-ivac">
+       <span class="popup-overline">Anàlisi combinada · secció censal</span>
+       <b>${p.NOMMUNI ?? "—"}</b>
+       <span class="popup-ref">Secció censal: ${p.MUNDISSEC ?? "—"}</span>
+       <div class="popup-biv-matrix">
+         <div class="biv-wrap">
+           <span class="biv-axis-y">Més lluny d'un refugi →</span>
+           <div class="biv-grid">${grid}</div>
+         </div>
+         <div class="biv-axis-x">Més vulnerable (IVAC) →</div>
+       </div>
+       <div class="popup-biv-rows">
+         <div class="comp-head">
+           <span class="comp-name">Vulnerabilitat (IVAC)</span>
+           <span class="comp-val">${fmt(iv)} · ${nivIVAC}</span>
+         </div>
+         <div class="comp-head">
+           <span class="comp-name">Distància al refugi més proper</span>
+           <span class="comp-val">${distTxt} · ${nivDist}</span>
+         </div>
+       </div>
+       ${prioritat ? `<p class="popup-biv-prio">→ Zona de prioritat: molt vulnerable i lluny de tot refugi.</p>` : ``}
+       <p class="popup-ivac-footnote">La cel·la ressaltada marca on se situa aquesta zona dins l'escala 3×3.</p>
+     </div>`;
+}
+
+function onEachIVAC(feature, layer) {
+  // Popup dinàmic: s'avalua en obrir-se, de manera que sempre ensenya les dades
+  // de la representació activa (vulnerabilitat o bivariant).
+  layer.bindPopup(
+    (lyr) => modeBivariant ? popupBivariantHtml(lyr.feature) : popupIvacHtml(lyr.feature),
     { maxWidth: 320 }
   );
 
@@ -654,9 +712,11 @@ document.querySelectorAll('input[name="basemap"]').forEach((r) => {
 
 // Interruptors de capes temàtiques
 document.getElementById("chk-ivac").addEventListener("change", function () {
-  if (!capaIVAC) return;
-  if (this.checked) { capaIVAC.addTo(map); if (capaAMB) capaAMB.bringToFront(); }
-  else map.removeLayer(capaIVAC);
+  if (capaIVAC) {
+    if (this.checked) { capaIVAC.addTo(map); if (capaAMB) capaAMB.bringToFront(); }
+    else map.removeLayer(capaIVAC);
+  }
+  actualitzaColorModeDisponible();
 });
 document.getElementById("chk-amb").addEventListener("change", function () {
   if (!capaAMB) return;
@@ -669,35 +729,36 @@ document.getElementById("chk-refugis").addEventListener("change", function () {
   else map.removeLayer(capaRefugis);
 });
 
-// Vista bivariant (mode d'anàlisi): recolora l'IVAC segons IVAC × distància a refugi.
-function aplicaBivariant(actiu) {
-  const chkBiv = document.getElementById("chk-biv");
-  if (actiu) {
-    // Necessita l'IVAC i els refugis carregats; si encara no hi són, desmarca i avisa.
-    if (!calculaBivariant()) {
-      chkBiv.checked = false;
-      console.warn("Vista bivariant: dades encara no carregades (IVAC o refugis).");
-      return;
-    }
-    modeBivariant = true;
-    const chkI = document.getElementById("chk-ivac");
-    if (!chkI.checked) {   // el mode viu sobre la capa IVAC: assegura-la activa
-      chkI.checked = true;
-      capaIVAC.addTo(map);
-      if (capaAMB) capaAMB.bringToFront();
-    }
-  } else {
-    modeBivariant = false;
+// Coloració de la capa IVAC: "vuln" (rampa Spectral 0–100) o "biv" (bivariant
+// × distància al refugi més proper). No és una capa a part, sinó una manera de
+// pintar la mateixa capa; per això viu dins del grup de vulnerabilitat i en
+// canvia alhora l'estil i el popup.
+function aplicaColoracio(mode) {
+  const biv = (mode === "biv");
+  if (biv && !calculaBivariant()) {   // dades encara no llestes: torna a vulnerabilitat
+    document.getElementById("col-vuln").checked = true;
+    console.warn("Coloració bivariant: dades encara no carregades (IVAC o refugis).");
+    return;
   }
-  if (capaIVAC) capaIVAC.setStyle(estilIVAC);   // reaplica l'estil (resetStyle en respecta el mode)
+  modeBivariant = biv;
+  if (capaIVAC) capaIVAC.setStyle(estilIVAC);   // reaplica l'estil; resetStyle i el popup respecten el mode
   const uni = document.getElementById("legend-ivac-uni");
-  const biv = document.getElementById("legend-biv");
-  if (uni) uni.hidden = actiu;
-  if (biv) biv.hidden = !actiu;
+  const lg = document.getElementById("legend-biv");
+  if (uni) uni.hidden = biv;
+  if (lg) lg.hidden = !biv;
 }
-document.getElementById("chk-biv").addEventListener("change", function () {
-  aplicaBivariant(this.checked);
+document.querySelectorAll('input[name="ivac-color"]').forEach((r) => {
+  r.addEventListener("change", function () { if (this.checked) aplicaColoracio(this.value); });
 });
+
+// El selector de coloració només té sentit si la capa IVAC és visible.
+function actualitzaColorModeDisponible() {
+  const on = document.getElementById("chk-ivac").checked;
+  const box = document.getElementById("ivac-colormode");
+  if (box) box.classList.toggle("disabled", !on);
+  document.querySelectorAll('input[name="ivac-color"]').forEach((r) => { r.disabled = !on; });
+}
+actualitzaColorModeDisponible();
 // Recorda l'opacitat de l'IVAC abans d'abaixar-la automàticament amb la temperatura
 let opacIVACabansTemp = null;
 

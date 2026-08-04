@@ -77,6 +77,17 @@
               <input type="checkbox" id="chk-ivac" checked>
               <span><span class="swatch-ivac"></span>Índex de Vulnerabilitat (IVAC)</span>
             </label>
+            <div class="color-mode" id="ivac-colormode">
+              <span class="color-mode-label">Coloració</span>
+              <label class="ctrl-row ctrl-sub">
+                <input type="radio" name="ivac-color" id="col-vuln" value="vuln" checked>
+                <span>Vulnerabilitat (0–100)</span>
+              </label>
+              <label class="ctrl-row ctrl-sub">
+                <input type="radio" name="ivac-color" id="col-biv" value="biv">
+                <span>Bivariant: × distància a refugis</span>
+              </label>
+            </div>
           </div>
 
           <div class="layer-group">
@@ -85,16 +96,6 @@
               <input type="checkbox" id="chk-refugis" checked>
               <span><span class="dot-refugi"></span>Refugis climàtics (AMB)</span>
             </label>
-          </div>
-
-          <!-- Mode d'anàlisi: no és una capa, sinó una transformació de l'IVAC. -->
-          <div class="mode-block">
-            <h3 class="mode-title">Anàlisi combinada</h3>
-            <label class="ctrl-row mode-row">
-              <input type="checkbox" id="chk-biv">
-              <span>Vista bivariant: vulnerabilitat × refugis</span>
-            </label>
-            <p class="capa-nota mode-nota">Recolora l'IVAC creuant la vulnerabilitat amb la distància al refugi més proper.</p>
           </div>
 
           <!-- Capa de context, deliberadament secundària -->
