@@ -271,7 +271,7 @@ let opacitatIVAC = 0.75;
 /* ---------- 2 bis. Mode bivariant: Vulnerabilitat (IVAC) × dèficit de resposta ----------
    Recolora la MATEIXA capa IVAC creuant dues variables en una escala 3×3:
    files = distància al refugi més proper (a prop → lluny), columnes = IVAC (baix → alt).
-   El racó FOSC (inferior dret) marca les seccions alhora molt vulnerables i lluny de tot
+   El racó FOSC (inferior dret) marca les illes alhora molt vulnerables i lluny de tot
    refugi: la resposta pública on més falta. Es calcula al client i es cacheja. */
 const BIV_M = [
   ["#e8e8e8", "#b0d5df", "#64acbe"],  // a prop d'un refugi
@@ -279,7 +279,7 @@ const BIV_M = [
   ["#c85a5a", "#985356", "#574249"]   // lluny de tot refugi
 ];
 let modeBivariant = false;   // el mode d'anàlisi és actiu?
-let bivReady = false;        // ja s'ha calculat el color bivariant per secció?
+let bivReady = false;        // ja s'ha calculat el color bivariant per illa?
 let refugiPunts = [];        // [lat,lng] de tots els refugis (capa de punts)
 let distXarxa = null;        // distància per la xarxa viària de cada polígon (m), en ordre
 let ivacIdx = 0;             // índex correlatiu de polígon, per casar-lo amb distXarxa
@@ -297,7 +297,7 @@ function estilIVAC(feature) {
     const c = feature.properties._biv;
     return {
       fillColor: c || "#e8e8e8",
-      fillOpacity: c ? opacitatIVAC : 0,   // seccions sense IVAC: transparents
+      fillOpacity: c ? opacitatIVAC : 0,   // illes sense IVAC: transparents
       color: "#ffffff", weight: 0.15, opacity: 0.4
     };
   }
@@ -310,7 +310,7 @@ function estilIVAC(feature) {
   };
 }
 
-// Calcula la classe bivariant de cada secció (IVAC × distància a peu al refugi més
+// Calcula la classe bivariant de cada illa (IVAC × distància a peu al refugi més
 // proper) i desa el color resultant a feature.properties._biv. Un sol cop: es cacheja.
 // La distància ve precalculada per la xarxa viària (dist_refugi.json), indexada per
 // l'ordre de les features.
@@ -399,7 +399,7 @@ function popupIvacHtml(feature) {
             </div>`;
   }).join("");
   return `<div class="popup-ivac">
-       <span class="popup-overline">Zona urbana · secció censal</span>
+       <span class="popup-overline">Zona urbana · illa</span>
        <b>${p.NOMMUNI ?? "—"}</b>
        <span class="popup-ref">Secció censal: ${p.MUNDISSEC ?? "—"}</span>
        <div class="popup-ivac-total">
@@ -430,7 +430,7 @@ function popupBivariantHtml(feature) {
     : (dist < 1000 ? Math.round(dist) + " m" : (dist / 1000).toFixed(1) + " km");
   const prioritat = (p._bivCI === 2 && p._bivCD === 2);
   // Matriu 3×3: fila de dalt = més lluny (cd 2), columna de la dreta = més
-  // vulnerable (ci 2). Es ressalta la cel·la (cd, ci) d'aquesta secció.
+  // vulnerable (ci 2). Es ressalta la cel·la (cd, ci) d'aquesta illa.
   let grid = "";
   for (let domRow = 0; domRow < 3; domRow++) {
     const cd = 2 - domRow;
@@ -440,7 +440,7 @@ function popupBivariantHtml(feature) {
     }
   }
   return `<div class="popup-ivac">
-       <span class="popup-overline">Anàlisi combinada · secció censal</span>
+       <span class="popup-overline">Anàlisi combinada · illa</span>
        <b>${p.NOMMUNI ?? "—"}</b>
        <span class="popup-ref">Secció censal: ${p.MUNDISSEC ?? "—"}</span>
        <div class="popup-biv-matrix">
@@ -460,8 +460,8 @@ function popupBivariantHtml(feature) {
            <span class="comp-val">${distTxt} · ${nivDist}</span>
          </div>
        </div>
-       ${prioritat ? `<p class="popup-biv-prio">→ Zona de prioritat: molt vulnerable i lluny de tot refugi.</p>` : ``}
-       <p class="popup-ivac-footnote">La cel·la ressaltada marca on se situa aquesta zona dins l'escala 3×3.</p>
+       ${prioritat ? `<p class="popup-biv-prio">→ Illa de prioritat: molt vulnerable i lluny de tot refugi.</p>` : ``}
+       <p class="popup-ivac-footnote">La cel·la ressaltada marca on se situa aquesta illa dins l'escala 3×3.</p>
      </div>`;
 }
 
@@ -728,7 +728,7 @@ document.getElementById("chk-refugis").addEventListener("change", function () {
 });
 
 // Anàlisi combinada (síntesi): la vista bivariant = vulnerabilitat × distància al
-// refugi més proper. No és una capa nova, sinó una recoloració de les seccions de
+// refugi més proper. No és una capa nova, sinó una recoloració de les illes de
 // l'IVAC; mentre és activa "pren" la capa de vulnerabilitat (l'encén i en bloqueja
 // la casella) i n'intercanvia l'estil i el popup.
 function aplicaSintesi(actiu) {
@@ -741,7 +741,7 @@ function aplicaSintesi(actiu) {
       return;
     }
     modeBivariant = true;
-    if (capaIVAC && !chkI.checked) {   // la síntesi necessita les seccions visibles
+    if (capaIVAC && !chkI.checked) {   // la síntesi necessita les illes visibles
       chkI.checked = true;
       capaIVAC.addTo(map);
       if (capaAMB) capaAMB.bringToFront();
@@ -870,7 +870,7 @@ controlLlegenda.onAdd = function () {
         </div>
       </div>
       <div class="biv-axis-x">Més vulnerable (IVAC) →</div>
-      <div class="legend-nota">El <b>racó fosc</b> = seccions molt vulnerables i lluny de tot refugi (prioritat d'actuació). Distància per la xarxa viària (a peu) al refugi més proper; talls per tercils.</div>
+      <div class="legend-nota">El <b>racó fosc</b> = illes molt vulnerables i lluny de tot refugi (prioritat d'actuació). Distància per la xarxa viària (a peu) al refugi més proper; talls per tercils.</div>
     </div>
     <div class="map-legend-opacitat">
       <label for="rang-opacitat">Transparència de la capa</label>
